@@ -1,11 +1,18 @@
-#include <esp_now.h>
-#include <WiFi.h>
+#include <ESP8266WiFi.h>
+#include <espnow.h>
 
-#define LED 2
+#include <ESP8266TrueRandom.h>
 
-#define INIT 'i'
-#define ENEMY 'e'
-#define ALLY 'a'
+#define LED 16
+
+#define D5  14
+#define D6  12
+#define D7  13
+#define D8  15
+
+#define INIT    'i'
+#define ENEMY   'e'
+#define ALLY    'a'
 #define TIMEOUT 't'
 
 #define DEVICE_COUNT 3
@@ -13,22 +20,20 @@
 typedef struct comm {
   char type;
   uint8_t index;
-  float time;
+  unsigned long time;
 } comm;
 
-uint8_t device_addrs[][ESP_NOW_ETH_ALEN] = {
-  {0x30, 0xC6, 0xF7, 0x2F, 0x2A, 0x60}, // ESP32 DEVKIT V1
-  {0x78, 0xE3, 0x6D, 0xDE, 0xF0, 0x98}, // ESP32-DevKitC V4
-  {0x58, 0xBF, 0x25, 0x9A, 0x4D, 0x24}  // NodeMCU ESP-32S
+uint8_t device_addrs[][6] = {
+  {0xCC, 0x50, 0xE3, 0x16, 0x63, 0xF5},
+  {0xA8, 0x48, 0xFA, 0xD6, 0x32, 0xD5},
+  {0x84, 0xF3, 0xEB, 0x16, 0x68, 0xC8}
 };
 
 void add_peer(uint8_t index) {
-    esp_now_peer_info_t peer_info = {};
-    memcpy(peer_info.peer_addr, device_addrs[index], ESP_NOW_ETH_ALEN);
-    peer_info.channel = 0;
-    peer_info.encrypt = false;
-    if (esp_now_add_peer(&peer_info) != ESP_OK){
-      Serial.print("Failed to add peer: ");
-      Serial.println(index);
+    int err = esp_now_add_peer(device_addrs[index], ESP_NOW_ROLE_COMBO, 1, NULL, 0);
+    if (!err) {
+      Serial.printf("Successfully added peer %d\n", index);
+    } else {
+      Serial.printf("Failed to add peer %d: %d\n", index, err);
     }
 }

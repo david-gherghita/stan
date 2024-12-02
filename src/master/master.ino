@@ -3,36 +3,39 @@
 comm comm_data;
 bool conns[DEVICE_COUNT] = {false};
 
-bool waiting = false;
 bool game_over = false;
+bool print_game_over = true;
+
+bool waiting = false;
 uint8_t round_count = 0;
 float score = 0;
 
-void recv_data(const uint8_t *mac, const uint8_t *data, int len) {
+void recv_data(uint8_t *mac, uint8_t *data, uint8_t len) {
   memcpy(&comm_data, data, sizeof(comm_data));
   switch (comm_data.type) {
     case INIT:
-      Serial.print("INIT received from: ");
-      Serial.println(comm_data.index);
+      Serial.printf("INIT received from %d\n", comm_data.index);
 
       conns[comm_data.index] = true;
+
       break;
     case ENEMY:
-      Serial.print("ENEMY shot in: ");
-      Serial.println(comm_data.time);
+      Serial.printf("ENEMY shot in %d ms\n", comm_data.time);
 
-      score += 1000 / comm_data.time;
+      score += 1000.0 / comm_data.time;
       ++round_count;
+
       break;
     case ALLY:
       Serial.println("ALLY shot: ending game");
 
       game_over = true;
+      score = 0;
+
       break;
     case TIMEOUT:
       Serial.println("Target not shot");
 
-      ++round_count;
       break;
   }
 
@@ -42,32 +45,33 @@ void recv_data(const uint8_t *mac, const uint8_t *data, int len) {
 void send_init_conn(const uint8_t index) {
   comm_data.type = INIT;
   comm_data.index = index;
-  esp_err_t result = esp_now_send(device_addrs[index], (uint8_t *) &comm_data, sizeof(comm_data));
-  if (result == ESP_OK) {
-    Serial.print("Successfully sent INIT data to: ");
-    Serial.println(index);
+  int err = esp_now_send(device_addrs[index], (uint8_t *) &comm_data, sizeof(comm_data));
+  if (!err) {
+    Serial.printf("Successfully sent INIT data to: %d\n", index);
   } else {
-    Serial.print("Error sending INIT data to: ");
-    Serial.println(index);
+    Serial.printf("Failed to send INIT data to: %d\n", index);
   }
 }
 
 void setup() {
   Serial.begin(115200);
   pinMode(LED, OUTPUT);
-  randomSeed(analogRead(0));
   WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
 
-  if (esp_now_init() != ESP_OK) {
+  Serial.printf("\n----------START----------\n");
+
+  if (esp_now_init() != 0) {
     Serial.println("Error initializing ESP-NOW");
     return;
   }
+  esp_now_set_self_role(ESP_NOW_ROLE_COMBO);
 
   for (uint8_t i = 1; i < DEVICE_COUNT; i++) {
     add_peer(i);
   }
 
-  esp_now_register_recv_cb(esp_now_recv_cb_t(recv_data));
+  esp_now_register_recv_cb(recv_data);
 
   for (uint8_t i = 1; i < DEVICE_COUNT; i++) {
     while (!conns[i]) {
@@ -84,43 +88,35 @@ void setup() {
 }
 
 void loop() {
+  if (round_count == 5 || game_over) {
+    if (print_game_over) {
+      Serial.println("GAME OVER");
+      Serial.printf("SCORE: %f\n", score);
+      print_game_over = false;
+    }
+    return;
+  }
+
   if (waiting) {
     return;
   }
 
-  if (round_count == 5) {
-    game_over = true;
-  }
+  delay(ESP8266TrueRandom.random(100, 2000));
 
-  if (game_over) {
-    Serial.println("GAME OVER");
-    Serial.print("SCORE: ");
-    Serial.println(score);
-    while (true);
-  }
-
-  delay(random(100, 1000));
-
-  if (random(5) == 0) {
+  if (ESP8266TrueRandom.random(5) == 0) {
     comm_data.type = ALLY;
   } else {
     comm_data.type = ENEMY;
   }
 
-  uint8_t target_index = random(1, DEVICE_COUNT);
+  // uint8_t target_index = ESP8266TrueRandom.random(1, DEVICE_COUNT);
+  uint8_t target_index = 1;
 
-  esp_err_t result = esp_now_send(device_addrs[target_index], (uint8_t *) &comm_data, sizeof(comm_data));
-  if (result == ESP_OK) {
-    Serial.print("Successfully sent '");
-    Serial.print(comm_data.type);
-    Serial.print("' target data to: ");
-    Serial.println(target_index);
+  int err = esp_now_send(device_addrs[target_index], (uint8_t *) &comm_data, sizeof(comm_data));
+  if (!err) {
+    Serial.printf("Successfully sent %c data to %d\n", comm_data.type, target_index);
   } else {
-    Serial.print("Error sending '");
-    Serial.print(comm_data.type);
-    Serial.print("' target data to: ");
-    Serial.println(target_index);
+    Serial.printf("Failed to send %c data to %d\n", comm_data.type, target_index);
   }
-
   waiting = true;
 }
