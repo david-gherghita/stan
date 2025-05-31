@@ -15,7 +15,7 @@
 #define ALLY    'a'
 #define TIMEOUT 't'
 
-#define DEVICE_COUNT 3
+#define DEVICE_COUNT 2
 
 typedef struct comm {
   char type;

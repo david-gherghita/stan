@@ -11,14 +11,20 @@ void led_off() {
   digitalWrite(D8, LOW);
 }
 
-void led_green() {
+void led_red() {
   digitalWrite(D6, HIGH);
+  digitalWrite(D7, LOW);
+  digitalWrite(D8, LOW);
+}
+
+void led_green() {
+  digitalWrite(D6, LOW);
   digitalWrite(D7, LOW);
   digitalWrite(D8, HIGH);
 }
 
-void led_red() {
-  digitalWrite(D6, HIGH);
+void led_blue() {
+  digitalWrite(D6, LOW);
   digitalWrite(D7, HIGH);
   digitalWrite(D8, LOW);
 }
@@ -66,13 +72,15 @@ void recv_data(uint8_t *mac, uint8_t *data, uint8_t len) {
 }
 
 void setup() {
-  Serial.begin(115200);
-
   pinMode(A0, INPUT);
   pinMode(D5, OUTPUT);
   pinMode(D6, OUTPUT);
   pinMode(D7, OUTPUT);
   pinMode(D8, OUTPUT);
+
+  led_blue();
+
+  Serial.begin(115200);
 
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
@@ -92,8 +100,6 @@ void setup() {
 
   active = false;
 
-  led_red();
-
   Serial.println("Device setup successful");
 }
 
@@ -102,7 +108,8 @@ void loop() {
     return;
   }
 
-  if (analogRead(A0) > 200) {
+  Serial.println(analogRead(A0));
+  if (analogRead(A0) > 150) {
     Serial.println("HIT");
 
     comm_data.time = millis() - active_time;
@@ -118,7 +125,7 @@ void loop() {
     active = false;
   }
 
-  if (comm_data.type == ALLY && millis() - active_time > 3000) {
+  if (comm_data.type == ALLY && millis() - active_time > 1000) {
     Serial.println("TIMEOUT");
 
     comm_data.type = TIMEOUT;

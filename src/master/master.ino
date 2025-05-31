@@ -91,7 +91,7 @@ void loop() {
   if (round_count == 5 || game_over) {
     if (print_game_over) {
       Serial.println("GAME OVER");
-      Serial.printf("SCORE: %f\n", score);
+      Serial.printf("SCORE: %f\n", score * 1000);
       print_game_over = false;
     }
     return;
@@ -101,7 +101,7 @@ void loop() {
     return;
   }
 
-  delay(ESP8266TrueRandom.random(100, 2000));
+  delay(ESP8266TrueRandom.random(500, 2000));
 
   if (ESP8266TrueRandom.random(5) == 0) {
     comm_data.type = ALLY;
